@@ -132,7 +132,7 @@
     <!-- SPARK-41247: When updating `protobuf.version`, also need to update `protoVersion` in `SparkBuild.scala` -->
     <protobuf.version>4.33.0</protobuf.version>
     <protoc-jar-maven-plugin.version>3.11.4</protoc-jar-maven-plugin.version>
-    <zookeeper.version>3.9.4</zookeeper.version>
+    <zookeeper.version>3.9.5</zookeeper.version>
     <curator.version>5.9.0</curator.version>
     <hive.group>io.hops.hive</hive.group>
     <hive.classifier>core</hive.classifier>
@@ -187,7 +187,7 @@
     <scalafmt.validateOnly>true</scalafmt.validateOnly>
     <scalafmt.changedOnly>true</scalafmt.changedOnly>
     <!-- Should be consistent with SparkBuild.scala and docs -->
-    <fasterxml.jackson.version>2.21.2</fasterxml.jackson.version>
+    <fasterxml.jackson.version>2.21.4</fasterxml.jackson.version>
     <ws.xmlschema.version>2.3.1</ws.xmlschema.version>
     <snappy.version>1.1.10.8</snappy.version>
     <netlib.ludovic.dev.version>3.0.4</netlib.ludovic.dev.version>
@@ -223,7 +223,7 @@
     <bouncycastle.version>1.82</bouncycastle.version>
     <tink.version>1.16.0</tink.version>
     <datasketches.version>6.2.0</datasketches.version>
-    <netty.version>4.2.7.Final</netty.version>
+    <netty.version>4.2.17.Final</netty.version>
     <netty-tcnative.version>2.0.74.Final</netty-tcnative.version>
     <icu4j.version>77.1</icu4j.version>
     <junit.version>6.0.0</junit.version>
@@ -283,7 +283,16 @@
       during compilation if the dependency is transitive (e.g. "graphx/" depending on "core/" and
       needing Hadoop classes in the classpath to compile).
     -->
-    <derby.deps.scope>compile</derby.deps.scope>
+    <!-- Derby is the embedded engine behind Spark's *local* Hive metastore. Hopsworks
+         always points at an external metastore, so nothing on a deployed cluster ever
+         starts it, and shipping it only puts derby 10.16.1.1 and CVE-2022-46337 in the
+         assembly. There is no version to move to: the advisory names 10.16.1.2, which
+         was never released, and the next real release, 10.17.1.0, requires Java 21
+         while these images are Java 17. `provided` keeps Derby on the compile and test
+         classpaths - the Hive suites that spin up a local metastore still run - and
+         takes it out of the distribution. The Hive fork dropped it the same way on
+         branch-4.1 (89b88ad507). -->
+    <derby.deps.scope>provided</derby.deps.scope>
     <hadoop.deps.scope>compile</hadoop.deps.scope>
     <huaweicloud.deps.scope>compile</huaweicloud.deps.scope>
     <hive.deps.scope>compile</hive.deps.scope>
@@ -926,7 +935,7 @@
       <dependency>
         <groupId>org.lz4</groupId>
         <artifactId>lz4-java</artifactId>
-        <version>1.8.0</version>
+        <version>1.8.1</version>
       </dependency>
       <dependency>
         <groupId>com.github.luben</groupId>
@@ -1091,6 +1100,24 @@
         <artifactId>derbytools</artifactId>
         <version>${derby.version}</version>
         <scope>${derby.deps.scope}</scope>
+      </dependency>
+      <!-- Transitive of hadoop-common; 1.9.4 carries CVE-2025-48734. 1.11.0 is the fix
+           and stays on the 1.x API. -->
+      <dependency>
+        <groupId>commons-beanutils</groupId>
+        <artifactId>commons-beanutils</artifactId>
+        <version>1.11.0</version>
+      </dependency>
+      <!-- 2.0.6.1 is the CVE-2021-33813 fix and the only difference from 2.0.6. The
+           jar reaches the assembly through aliyun-sdk-oss, which pins 2.0.6 outright,
+           so excluding hadoop-aliyun below should take it out entirely; the pin stays
+           because Saxon-HE also declares jdom2 and this costs nothing if that path
+           ever becomes live. (An earlier revision of this comment credited the Hive
+           jars - that was wrong.) -->
+      <dependency>
+        <groupId>org.jdom</groupId>
+        <artifactId>jdom2</artifactId>
+        <version>2.0.6.1</version>
       </dependency>
       <dependency>
         <groupId>io.dropwizard.metrics</groupId>
